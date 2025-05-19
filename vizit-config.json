@@ -12,9 +12,6 @@
               "dataSource": "df_hr.csv",
               "type": "bar",
               "agg": "sum",
-              "y": "value",
-              "name": "variable",
-              "x": "hour",
               "filter": {
                 "variable": {
                   "filter_type": "include",
@@ -23,7 +20,10 @@
                     "gen_pv"
                   ]
                 }
-              }
+              },
+              "name": "variable",
+              "x": "hour",
+              "y": "value"
             },
             {
               "dataSource": "df_hr.csv",
@@ -36,8 +36,8 @@
                 }
               },
               "x": "hour",
-              "y": "value",
-              "name": "variable"
+              "name": "variable",
+              "y": "value"
             }
           ],
           "style": {
@@ -51,33 +51,33 @@
               "dataSource": "df_hr.csv",
               "type": "line",
               "agg": "sum",
+              "filter": {
+                "pv_cap": {
+                  "filter_type": "greater",
+                  "filter_val": "-1"
+                },
+                "variable": {
+                  "filter_type": "select",
+                  "filter_val": "price_load"
+                }
+              },
               "x": "hour",
-              "y": "value",
               "name": "pv_cap",
-              "filter": {
-                "pv_cap": {
-                  "filter_type": "greater",
-                  "filter_val": "-1"
-                },
-                "variable": {
-                  "filter_type": "select",
-                  "filter_val": "price_load"
-                }
-              }
+              "y": "value"
             },
             {
               "dataSource": "df_hr.csv",
               "type": "line dot",
               "agg": "sum",
-              "x": "hour",
               "filter": {
                 "variable": {
                   "filter_type": "select",
                   "filter_val": "price_load"
                 }
               },
-              "y": "value",
-              "name": "variable"
+              "x": "hour",
+              "name": "variable",
+              "y": "value"
             }
           ],
           "style": {
@@ -91,7 +91,6 @@
               "dataSource": "df_sum.csv",
               "type": "line",
               "agg": "sum",
-              "x": "market_share_pv",
               "filter": {
                 "pv_cap": {
                   "filter_type": "greater",
@@ -106,6 +105,7 @@
                   ]
                 }
               },
+              "x": "market_share_pv",
               "name": "variable",
               "y": "value"
             },
@@ -113,7 +113,6 @@
               "dataSource": "df_sum.csv",
               "type": "dot",
               "agg": "sum",
-              "x": "market_share_pv",
               "filter": {
                 "variable": {
                   "filter_type": "include",
@@ -124,6 +123,7 @@
                   ]
                 }
               },
+              "x": "market_share_pv",
               "name": "variable",
               "y": "value"
             }
@@ -131,7 +131,7 @@
           "style": {
             "X Min": "0",
             "X Max": "0.6",
-            "Y Min": "0",
+            "Y Min": "-20",
             "Y Max": "100"
           }
         },
@@ -141,8 +141,6 @@
               "dataSource": "df_sum.csv",
               "type": "line",
               "agg": "sum",
-              "x": "market_share_pv",
-              "name": "variable",
               "filter": {
                 "pv_cap": {
                   "filter_type": "greater",
@@ -153,6 +151,8 @@
                   "filter_val": "value_factor_pv_uncurt"
                 }
               },
+              "x": "market_share_pv",
+              "name": "variable",
               "y": "value"
             },
             {
@@ -166,15 +166,15 @@
                 }
               },
               "x": "market_share_pv",
-              "y": "value",
-              "name": "variable"
+              "name": "variable",
+              "y": "value"
             }
           ],
           "style": {
             "X Min": "0",
             "X Max": "0.6",
             "Y Min": "0",
-            "Y Max": "1"
+            "Y Max": "1.2"
           }
         }
       ],
@@ -185,7 +185,7 @@
   "filter": {
     "pv_cap": {
       "filter_type": "slider",
-      "filter_val": "20"
+      "filter_val": "10"
     }
   }
 }

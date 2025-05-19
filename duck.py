@@ -6,7 +6,7 @@ from pdb import set_trace as b
 peak_load = 100 #MW
 peak_price = 100 #$/MWh
 pv_max_cap = 400 #MW
-pv_steps = 20 #total number of steps
+pv_steps = 40 #total number of steps
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 #Read input csv, which has these columns: hour, cf_pv, cf_load
