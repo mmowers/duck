@@ -36,8 +36,11 @@ for i in range(1, pv_steps + 1):
     integration_cost_pv_uncurt = price_ave - lvoe_pv_uncurt
     ls_df_sum.append({'pv_cap':pv_cap, 'market_share_pv':market_share_pv, 'lvoe_pv':lvoe_pv, 'price_ave':price_ave, 'value_factor_pv':value_factor_pv, 'value_factor_pv_uncurt':value_factor_pv_uncurt, 'integration_cost_pv':integration_cost_pv, 'integration_cost_pv_uncurt':integration_cost_pv_uncurt})
 df_hr = pd.concat(ls_df_hr, ignore_index=True)
+df_hr = df_hr.drop(columns=['cf_pv', 'cf_load'])
+df_hr_long = pd.melt(df_hr, id_vars=['pv_cap', 'hour'], var_name='variable', value_name='value')
 df_sum = pd.DataFrame(ls_df_sum)
-df_hr.to_csv(f'{this_dir}/df_hr.csv', index=False)
-df_sum.to_csv(f'{this_dir}/df_sum.csv', index=False)
+df_sum_long = pd.melt(df_sum, id_vars=['pv_cap', 'market_share_pv'], var_name='variable', value_name='value')
+df_hr_long.to_csv(f'{this_dir}/df_hr.csv', index=False)
+df_sum_long.to_csv(f'{this_dir}/df_sum.csv', index=False)
 
 b()

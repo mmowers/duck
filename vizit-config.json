@@ -12,8 +12,72 @@
               "dataSource": "df_hr.csv",
               "type": "bar",
               "agg": "sum",
+              "y": "value",
+              "name": "variable",
               "x": "hour",
-              "y": "gen_other"
+              "filter": {
+                "variable": {
+                  "filter_type": "include",
+                  "filter_val": [
+                    "gen_other",
+                    "gen_pv"
+                  ]
+                }
+              }
+            },
+            {
+              "dataSource": "df_hr.csv",
+              "type": "line dot",
+              "agg": "sum",
+              "filter": {
+                "variable": {
+                  "filter_type": "select",
+                  "filter_val": "price_load"
+                }
+              },
+              "x": "hour",
+              "y": "value",
+              "name": "variable"
+            }
+          ],
+          "style": {
+            "Y Min": "0",
+            "Y Max": "100"
+          }
+        },
+        {
+          "traces": [
+            {
+              "dataSource": "df_hr.csv",
+              "type": "line",
+              "agg": "sum",
+              "x": "hour",
+              "y": "value",
+              "name": "pv_cap",
+              "filter": {
+                "pv_cap": {
+                  "filter_type": "greater",
+                  "filter_val": "-1"
+                },
+                "variable": {
+                  "filter_type": "select",
+                  "filter_val": "price_load"
+                }
+              }
+            },
+            {
+              "dataSource": "df_hr.csv",
+              "type": "line dot",
+              "agg": "sum",
+              "x": "hour",
+              "filter": {
+                "variable": {
+                  "filter_type": "select",
+                  "filter_val": "price_load"
+                }
+              },
+              "y": "value",
+              "name": "variable"
             }
           ],
           "style": {
@@ -27,21 +91,83 @@
               "dataSource": "df_sum.csv",
               "type": "line",
               "agg": "sum",
+              "x": "market_share_pv",
               "filter": {
                 "pv_cap": {
                   "filter_type": "greater",
                   "filter_val": "-1"
+                },
+                "variable": {
+                  "filter_type": "include",
+                  "filter_val": [
+                    "integration_cost_pv_uncurt",
+                    "lvoe_pv",
+                    "price_ave"
+                  ]
                 }
               },
-              "x": "market_share_pv",
-              "y": "value_factor_pv_uncurt"
+              "name": "variable",
+              "y": "value"
             },
             {
               "dataSource": "df_sum.csv",
               "type": "dot",
               "agg": "sum",
               "x": "market_share_pv",
-              "y": "value_factor_pv_uncurt"
+              "filter": {
+                "variable": {
+                  "filter_type": "include",
+                  "filter_val": [
+                    "integration_cost_pv_uncurt",
+                    "lvoe_pv",
+                    "price_ave"
+                  ]
+                }
+              },
+              "name": "variable",
+              "y": "value"
+            }
+          ],
+          "style": {
+            "X Min": "0",
+            "X Max": "0.6",
+            "Y Min": "0",
+            "Y Max": "100"
+          }
+        },
+        {
+          "traces": [
+            {
+              "dataSource": "df_sum.csv",
+              "type": "line",
+              "agg": "sum",
+              "x": "market_share_pv",
+              "name": "variable",
+              "filter": {
+                "pv_cap": {
+                  "filter_type": "greater",
+                  "filter_val": "-1"
+                },
+                "variable": {
+                  "filter_type": "select",
+                  "filter_val": "value_factor_pv_uncurt"
+                }
+              },
+              "y": "value"
+            },
+            {
+              "dataSource": "df_sum.csv",
+              "type": "dot",
+              "agg": "sum",
+              "filter": {
+                "variable": {
+                  "filter_type": "select",
+                  "filter_val": "value_factor_pv_uncurt"
+                }
+              },
+              "x": "market_share_pv",
+              "y": "value",
+              "name": "variable"
             }
           ],
           "style": {
@@ -51,7 +177,9 @@
             "Y Max": "1"
           }
         }
-      ]
+      ],
+      "title": "Duck",
+      "description": ""
     }
   ],
   "filter": {
