@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+from pdb import set_trace as b
 
 #Switches
 peak_load = 100 #MW
@@ -38,3 +39,5 @@ df_hr = pd.concat(ls_df_hr, ignore_index=True)
 df_sum = pd.DataFrame(ls_df_sum)
 df_hr.to_csv(f'{this_dir}/df_hr.csv', index=False)
 df_sum.to_csv(f'{this_dir}/df_sum.csv', index=False)
+
+b()
