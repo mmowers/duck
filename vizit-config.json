@@ -1,0 +1,63 @@
+{
+  "fileNames": [
+    "df_hr.csv",
+    "df_sum.csv"
+  ],
+  "dashboards": [
+    {
+      "charts": [
+        {
+          "traces": [
+            {
+              "dataSource": "df_hr.csv",
+              "type": "bar",
+              "agg": "sum",
+              "x": "hour",
+              "y": "gen_other"
+            }
+          ],
+          "style": {
+            "Y Min": "0",
+            "Y Max": "100"
+          }
+        },
+        {
+          "traces": [
+            {
+              "dataSource": "df_sum.csv",
+              "type": "line",
+              "agg": "sum",
+              "filter": {
+                "pv_cap": {
+                  "filter_type": "greater",
+                  "filter_val": "-1"
+                }
+              },
+              "x": "market_share_pv",
+              "y": "value_factor_pv_uncurt"
+            },
+            {
+              "dataSource": "df_sum.csv",
+              "type": "dot",
+              "agg": "sum",
+              "x": "market_share_pv",
+              "y": "value_factor_pv_uncurt"
+            }
+          ],
+          "style": {
+            "X Min": "0",
+            "X Max": "0.6",
+            "Y Min": "0",
+            "Y Max": "1"
+          }
+        }
+      ]
+    }
+  ],
+  "filter": {
+    "pv_cap": {
+      "filter_type": "slider",
+      "filter_val": "20"
+    }
+  }
+}
