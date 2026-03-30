@@ -71,6 +71,10 @@
       <input type="number" id="pv_max_cap" value="400" min="1" step="1">
     </div>
     <div class="param-group">
+      <label>Reserve Margin Price ($/MWh)</label>
+      <input type="number" id="reserve_price" value="200" min="0" step="10">
+    </div>
+    <div class="param-group">
       <label>PV Steps</label>
       <input type="number" id="pv_steps" value="40" min="1" max="200" step="1">
     </div>
@@ -152,10 +156,11 @@ function parseCsv(text) {
 
 // ─── Computation ───────────────────────────────────────────────────────────
 function compute() {
-  const peak_load  = parseFloat(document.getElementById('peak_load').value)  || 100;
-  const peak_price = parseFloat(document.getElementById('peak_price').value) || 100;
-  const pv_max_cap = parseFloat(document.getElementById('pv_max_cap').value) || 400;
-  const pv_steps   = Math.max(1, parseInt(document.getElementById('pv_steps').value) || 40);
+  const peak_load     = parseFloat(document.getElementById('peak_load').value)     || 100;
+  const peak_price    = parseFloat(document.getElementById('peak_price').value)    || 100;
+  const reserve_price = parseFloat(document.getElementById('reserve_price').value) || 0;
+  const pv_max_cap    = parseFloat(document.getElementById('pv_max_cap').value)    || 400;
+  const pv_steps      = Math.max(1, parseInt(document.getElementById('pv_steps').value) || 40);
 
   const cfRaw = parseCsv(document.getElementById('cf_data').value);
   if (cfRaw.length === 0) return null;
@@ -171,9 +176,8 @@ function compute() {
   for (let i = 1; i <= pv_steps; i++) {
     const pv_cap = pv_max_cap * i / pv_steps;
     const hrRows = [];
-    let sumGenPv = 0, sumLoad = 0, sumMaxGenPv = 0;
-    let sumGenPvPrice = 0, sumMaxGenPvPrice = 0, sumLoadPrice = 0;
 
+    // First pass: compute hourly dispatch and energy-only price
     cfData.forEach(d => {
       const maxgen_pv  = d.cf_pv * pv_cap;
       const gen_pv     = Math.min(d.load, maxgen_pv);
@@ -182,13 +186,25 @@ function compute() {
       const price_load = gen_other / peak_load * peak_price;
 
       hrRows.push({ hour: d.hour, load: d.load, maxgen_pv, gen_pv, gen_other, curt_pv, price_load });
+    });
 
-      sumGenPv         += gen_pv;
+    // Add reserve margin price to peak net-load hour
+    let peakIdx = 0;
+    for (let j = 1; j < hrRows.length; j++) {
+      if (hrRows[j].gen_other > hrRows[peakIdx].gen_other) peakIdx = j;
+    }
+    hrRows[peakIdx].price_load += reserve_price;
+
+    // Second pass: compute weighted sums
+    let sumGenPv = 0, sumLoad = 0, sumMaxGenPv = 0;
+    let sumGenPvPrice = 0, sumMaxGenPvPrice = 0, sumLoadPrice = 0;
+    hrRows.forEach(d => {
+      sumGenPv         += d.gen_pv;
       sumLoad          += d.load;
-      sumMaxGenPv      += maxgen_pv;
-      sumGenPvPrice    += gen_pv     * price_load;
-      sumMaxGenPvPrice += maxgen_pv  * price_load;
-      sumLoadPrice     += d.load     * price_load;
+      sumMaxGenPv      += d.maxgen_pv;
+      sumGenPvPrice    += d.gen_pv    * d.price_load;
+      sumMaxGenPvPrice += d.maxgen_pv * d.price_load;
+      sumLoadPrice     += d.load      * d.price_load;
     });
 
     const market_share_pv           = sumLoad     > 0 ? sumGenPv         / sumLoad     : 0;
@@ -208,7 +224,7 @@ function compute() {
     });
   }
 
-  return { steps, peak_load, peak_price, pv_steps };
+  return { steps, peak_load, peak_price, reserve_price, pv_steps };
 }
 
 // ─── Charts ────────────────────────────────────────────────────────────────
@@ -243,7 +259,7 @@ function renderChart1(data, stepIdx) {
     yaxis: { title: 'Generation (MW)', range: [0, data.peak_load], showgrid: true },
     yaxis2: {
       title: 'Price ($/MWh)', overlaying: 'y', side: 'right',
-      range: [0, data.peak_price], showgrid: false
+      range: [0, data.peak_price + data.reserve_price], showgrid: false
     },
     legend: { x: 1.22, y: 1, xanchor: 'left', yanchor: 'top', font: { size: 11 } },
     margin: { t: 38, r: 175, b: 45, l: 52 }
@@ -348,7 +364,7 @@ document.getElementById('pv_cap_slider').addEventListener('input', function () {
   renderAll(cachedData, step);
 });
 
-['peak_load', 'peak_price', 'pv_max_cap', 'pv_steps'].forEach(id => {
+['peak_load', 'peak_price', 'reserve_price', 'pv_max_cap', 'pv_steps'].forEach(id => {
   document.getElementById(id).addEventListener('change', update);
 });
 
