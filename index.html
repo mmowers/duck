@@ -98,7 +98,6 @@
 
 <div class="section charts-grid">
   <div id="chart1" class="chart"></div>
-  <div id="chart2" class="chart"></div>
   <div id="chart3" class="chart"></div>
   <div id="chart4" class="chart"></div>
 </div>
@@ -252,35 +251,6 @@ function renderChart1(data, stepIdx) {
   }, { responsive: true });
 }
 
-function renderChart2(data, stepIdx) {
-  const traces = data.steps.map((s, i) => {
-    const selected = (i + 1) === stepIdx;
-    return {
-      x: s.hrRows.map(d => d.hour),
-      y: s.hrRows.map(d => d.price_load),
-      type: 'scatter', mode: 'lines',
-      name: `${s.pv_cap.toFixed(0)} MW`,
-      line: {
-        color: selected ? '#C00000' : 'rgba(150,150,150,0.35)',
-        width: selected ? 2.5 : 1
-      },
-      showlegend: selected
-    };
-  });
-
-  // Move selected trace to end so it renders on top
-  const selTrace = traces.splice(stepIdx - 1, 1)[0];
-  traces.push(selTrace);
-
-  Plotly.react('chart2', traces, {
-    title: { text: 'Price by Hour (all PV capacities)', font: { size: 13 } },
-    xaxis: { title: 'Hour', dtick: 3 },
-    yaxis: { title: 'Price ($/MWh)', range: [0, data.peak_price] },
-    legend: { x: 0.01, y: 0.99, font: { size: 11 } },
-    margin: MARGIN_NR
-  }, { responsive: true });
-}
-
 function renderChart3(data, stepIdx) {
   const vars = [
     { key: 'price_ave',                   label: 'Avg Price',                color: '#4472C4' },
@@ -342,7 +312,6 @@ function renderChart4(data, stepIdx) {
 
 function renderAll(data, stepIdx) {
   renderChart1(data, stepIdx);
-  renderChart2(data, stepIdx);
   renderChart3(data, stepIdx);
   renderChart4(data, stepIdx);
 }
