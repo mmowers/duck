@@ -145,13 +145,13 @@
 <script>
 // ─── Profile data ─────────────────────────────────────────────────────────
 const GEN_PROFILES = {
-  pv:      [0,0,0,0,0,0.01,0.08,0.23,0.42,0.59,0.74,0.82,0.87,0.87,0.84,0.76,0.63,0.47,0.3,0.13,0.03,0,0,0],
+  pv:      [0,0,0,0,0,0.02,0.12,0.30,0.50,0.67,0.80,0.89,0.93,0.93,0.89,0.81,0.68,0.51,0.32,0.14,0.04,0,0,0],
   wind:    [0.38,0.39,0.40,0.41,0.42,0.41,0.38,0.34,0.30,0.26,0.23,0.21,0.20,0.20,0.22,0.24,0.27,0.30,0.33,0.35,0.37,0.38,0.39,0.38],
   nuclear: [0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90]
 };
 
 const LOAD_PROFILES = {
-  southwest: [0.72,0.69,0.67,0.66,0.65,0.67,0.72,0.75,0.77,0.80,0.83,0.85,0.88,0.91,0.93,0.96,0.99,1.00,0.99,0.95,0.96,0.92,0.85,0.77],
+  southwest: [0.55,0.52,0.50,0.49,0.50,0.52,0.56,0.62,0.70,0.78,0.84,0.89,0.93,0.96,0.98,0.99,1.00,0.98,0.93,0.84,0.76,0.69,0.63,0.58],
   northeast: [0.68,0.65,0.63,0.62,0.63,0.67,0.75,0.84,0.90,0.93,0.95,0.96,0.97,0.97,0.96,0.95,0.94,0.96,1.00,0.98,0.95,0.90,0.82,0.74]
 };
 
@@ -293,11 +293,18 @@ function renderChart1(data, stepIdx) {
 }
 
 function renderChart3(data, stepIdx) {
+  const keys = ['price_ave', 'lvoe', 'integration_cost_uncurt'];
   const vars = [
     { key: 'price_ave',                   label: 'Avg Price',                color: '#4472C4' },
     { key: 'lvoe',                     label: 'LVOE',                      color: '#70AD47' },
     { key: 'integration_cost_uncurt',  label: 'Integration Cost (uncurt)', color: '#ED7D31' }
   ];
+
+  let yMin = 0, yMax = 0;
+  keys.forEach(k => {
+    data.steps.forEach(s => { yMin = Math.min(yMin, s[k]); yMax = Math.max(yMax, s[k]); });
+  });
+  const yPad = (yMax - yMin) * 0.08;
 
   const sel = data.steps[stepIdx - 1];
   const traces = [];
@@ -317,10 +324,12 @@ function renderChart3(data, stepIdx) {
     });
   });
 
+  const xMax = data.steps[data.steps.length - 1].market_share;
+
   Plotly.react('chart3', traces, {
     title: { text: 'Value Metrics vs Market Share', font: { size: 13 } },
-    xaxis: { title: 'Market Share', range: [0, 0.6], tickformat: '.0%' },
-    yaxis: { title: '$/MWh', range: [-20, 100] },
+    xaxis: { title: 'Market Share', range: [0, xMax * 1.05], tickformat: '.0%' },
+    yaxis: { title: '$/MWh', range: [yMin - yPad, yMax + yPad] },
     legend: LEGEND_RIGHT,
     margin: { t: 38, r: 160, b: 45, l: 52 }
   }, { responsive: true });
@@ -328,6 +337,12 @@ function renderChart3(data, stepIdx) {
 
 function renderChart4(data, stepIdx) {
   const sel = data.steps[stepIdx - 1];
+
+  let yMax = 0;
+  data.steps.forEach(s => { yMax = Math.max(yMax, s.value_factor_uncurt); });
+  const yPad = yMax * 0.08;
+
+  const xMax = data.steps[data.steps.length - 1].market_share;
 
   Plotly.react('chart4', [
     {
@@ -344,8 +359,8 @@ function renderChart4(data, stepIdx) {
     }
   ], {
     title: { text: 'Value Factor vs Market Share', font: { size: 13 } },
-    xaxis: { title: 'Market Share', range: [0, 0.6], tickformat: '.0%' },
-    yaxis: { title: 'Value Factor', range: [0, 1.2] },
+    xaxis: { title: 'Market Share', range: [0, xMax * 1.05], tickformat: '.0%' },
+    yaxis: { title: 'Value Factor', range: [0, yMax + yPad] },
     legend: LEGEND_RIGHT,
     margin: { t: 38, r: 150, b: 45, l: 52 }
   }, { responsive: true });
