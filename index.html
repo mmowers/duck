@@ -146,7 +146,7 @@
 // ─── Profile data ─────────────────────────────────────────────────────────
 const GEN_PROFILES = {
   pv:      [0,0,0,0,0,0.02,0.12,0.30,0.50,0.67,0.80,0.89,0.93,0.93,0.89,0.81,0.68,0.51,0.32,0.14,0.04,0,0,0],
-  wind:    [0.38,0.39,0.40,0.41,0.42,0.41,0.38,0.34,0.30,0.26,0.23,0.21,0.20,0.20,0.22,0.24,0.27,0.30,0.33,0.35,0.37,0.38,0.39,0.38],
+  wind:    [0.58,0.60,0.62,0.63,0.63,0.61,0.57,0.50,0.42,0.35,0.29,0.25,0.23,0.23,0.25,0.28,0.33,0.39,0.46,0.51,0.55,0.57,0.58,0.58],
   nuclear: [0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90]
 };
 
@@ -209,9 +209,9 @@ function compute() {
       const gen     = Math.min(d.load, maxgen);
       const gen_other  = d.load - gen;
       const curt    = maxgen - gen;
-      const price_load = gen_other / peak_load * peak_price;
+      const price = gen_other / peak_load * peak_price;
 
-      hrRows.push({ hour: d.hour, load: d.load, maxgen, gen, gen_other, curt, price_load });
+      hrRows.push({ hour: d.hour, load: d.load, maxgen, gen, gen_other, curt, price });
     });
 
     // Add reserve margin price to peak net-load hour
@@ -219,7 +219,9 @@ function compute() {
     for (let j = 1; j < hrRows.length; j++) {
       if (hrRows[j].gen_other > hrRows[peakIdx].gen_other) peakIdx = j;
     }
-    hrRows[peakIdx].price_load += reserve_price;
+    if (hrRows[peakIdx].gen_other > 0) {
+      hrRows[peakIdx].price += reserve_price;
+    }
 
     // Second pass: compute weighted sums
     let sumGen = 0, sumLoad = 0, sumMaxGen = 0;
@@ -228,9 +230,9 @@ function compute() {
       sumGen         += d.gen;
       sumLoad          += d.load;
       sumMaxGen      += d.maxgen;
-      sumGenPrice    += d.gen    * d.price_load;
-      sumMaxGenPrice += d.maxgen * d.price_load;
-      sumLoadPrice     += d.load      * d.price_load;
+      sumGenPrice    += d.gen    * d.price;
+      sumMaxGenPrice += d.maxgen * d.price;
+      sumLoadPrice     += d.load      * d.price;
     });
 
     const market_share           = sumLoad     > 0 ? sumGen         / sumLoad     : 0;
@@ -272,8 +274,8 @@ function renderChart1(data, stepIdx) {
       marker: { color: '#ED7D31' }
     },
     {
-      x: hours, y: s.hrRows.map(d => d.price_load),
-      name: 'price_load', type: 'scatter', mode: 'lines+markers',
+      x: hours, y: s.hrRows.map(d => d.price),
+      name: 'price', type: 'scatter', mode: 'lines+markers',
       yaxis: 'y2',
       line: { color: '#C00000', width: 2 },
       marker: { size: 5 }
@@ -293,38 +295,42 @@ function renderChart1(data, stepIdx) {
 }
 
 function renderChart3(data, stepIdx) {
-  const keys = ['price_ave', 'lvoe', 'integration_cost_uncurt'];
+  const keys = ['price_ave', 'lvoe_uncurt', 'integration_cost_uncurt'];
   const vars = [
     { key: 'price_ave',                   label: 'Avg Price',                color: '#4472C4' },
-    { key: 'lvoe',                     label: 'LVOE',                      color: '#70AD47' },
+    { key: 'lvoe_uncurt',              label: 'LVOE (uncurt)',              color: '#70AD47' },
     { key: 'integration_cost_uncurt',  label: 'Integration Cost (uncurt)', color: '#ED7D31' }
   ];
 
   let yMin = 0, yMax = 0;
   keys.forEach(k => {
-    data.steps.forEach(s => { yMin = Math.min(yMin, s[k]); yMax = Math.max(yMax, s[k]); });
+    data.steps.forEach(s => { if (s.price_ave > 0) { yMin = Math.min(yMin, s[k]); yMax = Math.max(yMax, s[k]); } });
   });
   const yPad = (yMax - yMin) * 0.08;
 
   const sel = data.steps[stepIdx - 1];
   const traces = [];
+  const allX = data.steps.map(s => s.market_share);
 
   vars.forEach(v => {
     traces.push({
-      x: data.steps.map(s => s.market_share),
-      y: data.steps.map(s => s[v.key]),
+      x: allX,
+      y: data.steps.map(s => s.price_ave > 0 ? s[v.key] : null),
       name: v.label, type: 'scatter', mode: 'lines',
-      line: { color: v.color, width: 2 }
+      line: { color: v.color, width: 2 },
+      connectgaps: false
     });
     traces.push({
-      x: [sel.market_share], y: [sel[v.key]],
+      x: [sel.market_share],
+      y: [sel.price_ave > 0 ? sel[v.key] : null],
       type: 'scatter', mode: 'markers',
       marker: { color: v.color, size: 9, line: { color: 'white', width: 1.5 } },
       showlegend: false
     });
   });
 
-  const xMax = data.steps[data.steps.length - 1].market_share;
+  const lastValid = data.steps.filter(s => s.price_ave > 0);
+  const xMax = lastValid.length > 0 ? lastValid[lastValid.length - 1].market_share : 1;
 
   Plotly.react('chart3', traces, {
     title: { text: 'Value Metrics vs Market Share', font: { size: 13 } },
@@ -339,25 +345,31 @@ function renderChart4(data, stepIdx) {
   const sel = data.steps[stepIdx - 1];
 
   let yMax = 0;
-  data.steps.forEach(s => { yMax = Math.max(yMax, s.value_factor_uncurt); });
+  data.steps.forEach(s => { if (s.price_ave > 0) yMax = Math.max(yMax, s.value_factor_uncurt); });
   const yPad = yMax * 0.08;
 
-  const xMax = data.steps[data.steps.length - 1].market_share;
+  const lastValid = data.steps.filter(s => s.price_ave > 0);
+  const xMax = lastValid.length > 0 ? lastValid[lastValid.length - 1].market_share : 1;
+  const allX = data.steps.map(s => s.market_share);
 
-  Plotly.react('chart4', [
+  const traces = [
     {
-      x: data.steps.map(s => s.market_share),
-      y: data.steps.map(s => s.value_factor_uncurt),
+      x: allX,
+      y: data.steps.map(s => s.price_ave > 0 ? s.value_factor_uncurt : null),
       name: 'Value Factor (uncurt)', type: 'scatter', mode: 'lines',
-      line: { color: '#7030A0', width: 2 }
+      line: { color: '#7030A0', width: 2 },
+      connectgaps: false
     },
     {
-      x: [sel.market_share], y: [sel.value_factor_uncurt],
+      x: [sel.market_share],
+      y: [sel.price_ave > 0 ? sel.value_factor_uncurt : null],
       type: 'scatter', mode: 'markers',
       marker: { color: '#7030A0', size: 9, line: { color: 'white', width: 1.5 } },
       showlegend: false
     }
-  ], {
+  ];
+
+  Plotly.react('chart4', traces, {
     title: { text: 'Value Factor vs Market Share', font: { size: 13 } },
     xaxis: { title: 'Market Share', range: [0, xMax * 1.05], tickformat: '.0%' },
     yaxis: { title: 'Value Factor', range: [0, yMax + yPad] },
