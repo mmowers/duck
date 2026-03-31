@@ -22,20 +22,33 @@
       width: 90px; padding: 4px 6px;
       border: 1px solid #ccc; border-radius: 3px;
     }
+    .param-group select {
+      padding: 4px 6px;
+      border: 1px solid #ccc; border-radius: 3px;
+    }
     details { border: 1px solid #ddd; border-radius: 4px; padding: 8px 10px; }
     summary { cursor: pointer; font-weight: bold; font-size: 0.9em; }
-    #cf_data {
-      width: 100%; height: 175px; font-family: monospace; font-size: 0.8em;
-      border: 1px solid #ccc; padding: 6px; resize: vertical; margin-top: 8px;
-      display: block;
+    .cf-row { display: flex; align-items: center; gap: 3px; margin-top: 3px; }
+    .cf-row label { font-weight: bold; font-size: 0.82em; color: #555; width: 38px; flex-shrink: 0; }
+    .cf-row input[type="number"] {
+      width: 36px; padding: 2px 1px; font-size: 0.75em;
+      border: 1px solid #ccc; border-radius: 3px; text-align: center;
+      appearance: textfield;
+      -moz-appearance: textfield;
     }
-    .data-buttons { margin-top: 6px; display: flex; gap: 8px; }
+    .cf-row input[type="number"]::-webkit-inner-spin-button,
+    .cf-row input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .cf-hour-labels { display: flex; gap: 3px; margin-top: 6px; }
+    .cf-hour-labels span {
+      width: 36px; text-align: center; font-size: 0.7em; color: #888; flex-shrink: 0;
+    }
+    .cf-hour-labels .cf-spacer { width: 38px; flex-shrink: 0; }
     .slider-section {
       display: flex; align-items: center; gap: 16px; padding: 9px 12px;
       background: #f5f5f5; border-radius: 4px;
     }
     .slider-label { font-weight: bold; white-space: nowrap; width: 280px; flex-shrink: 0; }
-    #pv_cap_slider { flex: 1; }
+    #cap_slider { flex: 1; }
     .charts-grid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
@@ -67,16 +80,31 @@
       <input type="number" id="peak_price" value="100" min="1" step="1">
     </div>
     <div class="param-group">
-      <label>Max PV Capacity (MW)</label>
-      <input type="number" id="pv_max_cap" value="400" min="1" step="1">
+      <label>Max Capacity (MW)</label>
+      <input type="number" id="max_cap" value="400" min="1" step="1">
     </div>
     <div class="param-group">
       <label>Reserve Margin Price ($/MWh)</label>
       <input type="number" id="reserve_price" value="200" min="0" step="10">
     </div>
     <div class="param-group">
-      <label>PV Steps</label>
-      <input type="number" id="pv_steps" value="80" min="1" max="200" step="1">
+      <label>Steps</label>
+      <input type="number" id="num_steps" value="80" min="1" max="200" step="1">
+    </div>
+    <div class="param-group">
+      <label>Generation Profile</label>
+      <select id="gen_profile">
+        <option value="pv">PV</option>
+        <option value="wind">Wind</option>
+        <option value="nuclear">Nuclear</option>
+      </select>
+    </div>
+    <div class="param-group">
+      <label>Load Profile</label>
+      <select id="load_profile">
+        <option value="southwest">Southwest</option>
+        <option value="northeast">Northeast</option>
+      </select>
     </div>
   </div>
 </div>
@@ -84,20 +112,28 @@
 <div class="section">
   <details>
     <summary>Input Data — capacity factors by hour (editable)</summary>
-    <textarea id="cf_data" spellcheck="false"></textarea>
-    <div class="data-buttons">
-      <button onclick="applyData()">Apply Changes</button>
-      <button class="secondary" onclick="resetCfData()">Reset to Default</button>
+    <div class="cf-hour-labels">
+      <span class="cf-spacer"></span>
+      <span>h0</span><span>h1</span><span>h2</span><span>h3</span><span>h4</span><span>h5</span>
+      <span>h6</span><span>h7</span><span>h8</span><span>h9</span><span>h10</span><span>h11</span>
+      <span>h12</span><span>h13</span><span>h14</span><span>h15</span><span>h16</span><span>h17</span>
+      <span>h18</span><span>h19</span><span>h20</span><span>h21</span><span>h22</span><span>h23</span>
+    </div>
+    <div class="cf-row" id="cf_gen_row">
+      <label>cf_gen</label>
+    </div>
+    <div class="cf-row" id="cf_load_row">
+      <label>cf_load</label>
     </div>
   </details>
 </div>
 
 <div class="section slider-section">
   <span class="slider-label">
-    PV Capacity: <span id="pv_cap_display">10.0</span> MW
+    Capacity: <span id="cap_display">10.0</span> MW
     &nbsp;(step <span id="step_display">0</span> of <span id="steps_display">80</span>)
   </span>
-  <input type="range" id="pv_cap_slider" min="1" max="80" value="1">
+  <input type="range" id="cap_slider" min="1" max="80" value="1">
 </div>
 
 <div class="section charts-grid">
@@ -107,51 +143,39 @@
 </div>
 
 <script>
-// ─── Default input data ────────────────────────────────────────────────────
-const DEFAULT_CF_DATA = `hour,cf_pv,cf_load
-0,0,0.72
-1,0,0.69
-2,0,0.67
-3,0,0.66
-4,0,0.65
-5,0.01,0.67
-6,0.08,0.72
-7,0.23,0.75
-8,0.42,0.77
-9,0.59,0.8
-10,0.74,0.83
-11,0.82,0.85
-12,0.87,0.88
-13,0.87,0.91
-14,0.84,0.93
-15,0.76,0.96
-16,0.63,0.99
-17,0.47,1
-18,0.3,0.99
-19,0.13,0.95
-20,0.03,0.96
-21,0,0.92
-22,0,0.85
-23,0,0.77`;
+// ─── Profile data ─────────────────────────────────────────────────────────
+const GEN_PROFILES = {
+  pv:      [0,0,0,0,0,0.01,0.08,0.23,0.42,0.59,0.74,0.82,0.87,0.87,0.84,0.76,0.63,0.47,0.3,0.13,0.03,0,0,0],
+  wind:    [0.38,0.39,0.40,0.41,0.42,0.41,0.38,0.34,0.30,0.26,0.23,0.21,0.20,0.20,0.22,0.24,0.27,0.30,0.33,0.35,0.37,0.38,0.39,0.38],
+  nuclear: [0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90,0.90]
+};
+
+const LOAD_PROFILES = {
+  southwest: [0.72,0.69,0.67,0.66,0.65,0.67,0.72,0.75,0.77,0.80,0.83,0.85,0.88,0.91,0.93,0.96,0.99,1.00,0.99,0.95,0.96,0.92,0.85,0.77],
+  northeast: [0.68,0.65,0.63,0.62,0.63,0.67,0.75,0.84,0.90,0.93,0.95,0.96,0.97,0.97,0.96,0.95,0.94,0.96,1.00,0.98,0.95,0.90,0.82,0.74]
+};
 
 // ─── State ─────────────────────────────────────────────────────────────────
 let cachedData = null;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
-function resetCfData() {
-  document.getElementById('cf_data').value = DEFAULT_CF_DATA;
+function buildCfInputs(rowId, defaults) {
+  const row = document.getElementById(rowId);
+  defaults.forEach((val, i) => {
+    const inp = document.createElement('input');
+    inp.type = 'number'; inp.step = '0.01'; inp.min = '0'; inp.max = '1';
+    inp.value = val; inp.dataset.hour = i;
+    inp.addEventListener('change', update);
+    row.appendChild(inp);
+  });
 }
 
-function parseCsv(text) {
-  const lines = text.trim().split('\n').filter(l => l.trim() !== '');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const vals = line.split(',');
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = parseFloat(vals[i]); });
-    return obj;
-  }).filter(row => !isNaN(row[headers[0]]));
+function populateRow(rowId, values) {
+  document.querySelectorAll(`#${rowId} input`).forEach((inp, i) => { inp.value = values[i]; });
+}
+
+function readCfRow(rowId) {
+  return Array.from(document.querySelectorAll(`#${rowId} input`)).map(inp => parseFloat(inp.value) || 0);
 }
 
 // ─── Computation ───────────────────────────────────────────────────────────
@@ -159,34 +183,35 @@ function compute() {
   const peak_load     = parseFloat(document.getElementById('peak_load').value)     || 100;
   const peak_price    = parseFloat(document.getElementById('peak_price').value)    || 100;
   const reserve_price = parseFloat(document.getElementById('reserve_price').value) || 0;
-  const pv_max_cap    = parseFloat(document.getElementById('pv_max_cap').value)    || 400;
-  const pv_steps      = Math.max(1, parseInt(document.getElementById('pv_steps').value) || 40);
+  const max_cap    = parseFloat(document.getElementById('max_cap').value)    || 400;
+  const num_steps      = Math.max(1, parseInt(document.getElementById('num_steps').value) || 40);
 
-  const cfRaw = parseCsv(document.getElementById('cf_data').value);
-  if (cfRaw.length === 0) return null;
+  const cfGenVals  = readCfRow('cf_gen_row');
+  const cfLoadVals = readCfRow('cf_load_row');
+  const nHours = Math.min(cfGenVals.length, cfLoadVals.length);
+  if (nHours === 0) return null;
 
-  const cfData = cfRaw.map(d => ({
-    hour: d.hour,
-    cf_pv: d.cf_pv,
-    load: peak_load * d.cf_load
-  }));
+  const cfData = [];
+  for (let h = 0; h < nHours; h++) {
+    cfData.push({ hour: h, cf_gen: cfGenVals[h], load: peak_load * cfLoadVals[h] });
+  }
 
   const steps = [];
 
-  const totalSteps = pv_steps + 1;
+  const totalSteps = num_steps + 1;
   for (let i = 1; i <= totalSteps; i++) {
-    const pv_cap = i === 1 ? 0.1 : pv_max_cap * (i - 1) / pv_steps;
+    const cap = i === 1 ? 0.1 : max_cap * (i - 1) / num_steps;
     const hrRows = [];
 
     // First pass: compute hourly dispatch and energy-only price
     cfData.forEach(d => {
-      const maxgen_pv  = d.cf_pv * pv_cap;
-      const gen_pv     = Math.min(d.load, maxgen_pv);
-      const gen_other  = d.load - gen_pv;
-      const curt_pv    = maxgen_pv - gen_pv;
+      const maxgen  = d.cf_gen * cap;
+      const gen     = Math.min(d.load, maxgen);
+      const gen_other  = d.load - gen;
+      const curt    = maxgen - gen;
       const price_load = gen_other / peak_load * peak_price;
 
-      hrRows.push({ hour: d.hour, load: d.load, maxgen_pv, gen_pv, gen_other, curt_pv, price_load });
+      hrRows.push({ hour: d.hour, load: d.load, maxgen, gen, gen_other, curt, price_load });
     });
 
     // Add reserve margin price to peak net-load hour
@@ -197,35 +222,35 @@ function compute() {
     hrRows[peakIdx].price_load += reserve_price;
 
     // Second pass: compute weighted sums
-    let sumGenPv = 0, sumLoad = 0, sumMaxGenPv = 0;
-    let sumGenPvPrice = 0, sumMaxGenPvPrice = 0, sumLoadPrice = 0;
+    let sumGen = 0, sumLoad = 0, sumMaxGen = 0;
+    let sumGenPrice = 0, sumMaxGenPrice = 0, sumLoadPrice = 0;
     hrRows.forEach(d => {
-      sumGenPv         += d.gen_pv;
+      sumGen         += d.gen;
       sumLoad          += d.load;
-      sumMaxGenPv      += d.maxgen_pv;
-      sumGenPvPrice    += d.gen_pv    * d.price_load;
-      sumMaxGenPvPrice += d.maxgen_pv * d.price_load;
+      sumMaxGen      += d.maxgen;
+      sumGenPrice    += d.gen    * d.price_load;
+      sumMaxGenPrice += d.maxgen * d.price_load;
       sumLoadPrice     += d.load      * d.price_load;
     });
 
-    const market_share_pv           = sumLoad     > 0 ? sumGenPv         / sumLoad     : 0;
-    const lvoe_pv                   = sumGenPv    > 0 ? sumGenPvPrice    / sumGenPv    : 0;
-    const lvoe_pv_uncurt            = sumMaxGenPv > 0 ? sumMaxGenPvPrice / sumMaxGenPv : 0;
+    const market_share           = sumLoad     > 0 ? sumGen         / sumLoad     : 0;
+    const lvoe                   = sumGen    > 0 ? sumGenPrice    / sumGen    : 0;
+    const lvoe_uncurt            = sumMaxGen > 0 ? sumMaxGenPrice / sumMaxGen : 0;
     const price_ave                 = sumLoad     > 0 ? sumLoadPrice     / sumLoad     : 0;
-    const value_factor_pv           = price_ave   > 0 ? lvoe_pv          / price_ave   : 0;
-    const value_factor_pv_uncurt    = price_ave   > 0 ? lvoe_pv_uncurt   / price_ave   : 0;
-    const integration_cost_pv       = price_ave - lvoe_pv;
-    const integration_cost_pv_uncurt = price_ave - lvoe_pv_uncurt;
+    const value_factor           = price_ave   > 0 ? lvoe          / price_ave   : 0;
+    const value_factor_uncurt    = price_ave   > 0 ? lvoe_uncurt   / price_ave   : 0;
+    const integration_cost       = price_ave - lvoe;
+    const integration_cost_uncurt = price_ave - lvoe_uncurt;
 
     steps.push({
-      pv_cap, hrRows,
-      market_share_pv, lvoe_pv, lvoe_pv_uncurt, price_ave,
-      value_factor_pv, value_factor_pv_uncurt,
-      integration_cost_pv, integration_cost_pv_uncurt
+      cap, hrRows,
+      market_share, lvoe, lvoe_uncurt, price_ave,
+      value_factor, value_factor_uncurt,
+      integration_cost, integration_cost_uncurt
     });
   }
 
-  return { steps, peak_load, peak_price, reserve_price, pv_steps, totalSteps };
+  return { steps, peak_load, peak_price, reserve_price, num_steps, totalSteps };
 }
 
 // ─── Charts ────────────────────────────────────────────────────────────────
@@ -242,8 +267,8 @@ function renderChart1(data, stepIdx) {
       marker: { color: '#4472C4' }
     },
     {
-      x: hours, y: s.hrRows.map(d => d.gen_pv),
-      name: 'gen_pv', type: 'bar',
+      x: hours, y: s.hrRows.map(d => d.gen),
+      name: 'gen', type: 'bar',
       marker: { color: '#ED7D31' }
     },
     {
@@ -270,8 +295,8 @@ function renderChart1(data, stepIdx) {
 function renderChart3(data, stepIdx) {
   const vars = [
     { key: 'price_ave',                   label: 'Avg Price',                color: '#4472C4' },
-    { key: 'lvoe_pv',                     label: 'LVOE PV',                  color: '#70AD47' },
-    { key: 'integration_cost_pv_uncurt',  label: 'Integration Cost (uncurt)', color: '#ED7D31' }
+    { key: 'lvoe',                     label: 'LVOE',                      color: '#70AD47' },
+    { key: 'integration_cost_uncurt',  label: 'Integration Cost (uncurt)', color: '#ED7D31' }
   ];
 
   const sel = data.steps[stepIdx - 1];
@@ -279,13 +304,13 @@ function renderChart3(data, stepIdx) {
 
   vars.forEach(v => {
     traces.push({
-      x: data.steps.map(s => s.market_share_pv),
+      x: data.steps.map(s => s.market_share),
       y: data.steps.map(s => s[v.key]),
       name: v.label, type: 'scatter', mode: 'lines',
       line: { color: v.color, width: 2 }
     });
     traces.push({
-      x: [sel.market_share_pv], y: [sel[v.key]],
+      x: [sel.market_share], y: [sel[v.key]],
       type: 'scatter', mode: 'markers',
       marker: { color: v.color, size: 9, line: { color: 'white', width: 1.5 } },
       showlegend: false
@@ -293,8 +318,8 @@ function renderChart3(data, stepIdx) {
   });
 
   Plotly.react('chart3', traces, {
-    title: { text: 'Value Metrics vs Solar Market Share', font: { size: 13 } },
-    xaxis: { title: 'Solar Market Share', range: [0, 0.6], tickformat: '.0%' },
+    title: { text: 'Value Metrics vs Market Share', font: { size: 13 } },
+    xaxis: { title: 'Market Share', range: [0, 0.6], tickformat: '.0%' },
     yaxis: { title: '$/MWh', range: [-20, 100] },
     legend: LEGEND_RIGHT,
     margin: { t: 38, r: 160, b: 45, l: 52 }
@@ -306,20 +331,20 @@ function renderChart4(data, stepIdx) {
 
   Plotly.react('chart4', [
     {
-      x: data.steps.map(s => s.market_share_pv),
-      y: data.steps.map(s => s.value_factor_pv_uncurt),
+      x: data.steps.map(s => s.market_share),
+      y: data.steps.map(s => s.value_factor_uncurt),
       name: 'Value Factor (uncurt)', type: 'scatter', mode: 'lines',
       line: { color: '#7030A0', width: 2 }
     },
     {
-      x: [sel.market_share_pv], y: [sel.value_factor_pv_uncurt],
+      x: [sel.market_share], y: [sel.value_factor_uncurt],
       type: 'scatter', mode: 'markers',
       marker: { color: '#7030A0', size: 9, line: { color: 'white', width: 1.5 } },
       showlegend: false
     }
   ], {
-    title: { text: 'Value Factor vs Solar Market Share', font: { size: 13 } },
-    xaxis: { title: 'Solar Market Share', range: [0, 0.6], tickformat: '.0%' },
+    title: { text: 'Value Factor vs Market Share', font: { size: 13 } },
+    xaxis: { title: 'Market Share', range: [0, 0.6], tickformat: '.0%' },
     yaxis: { title: 'Value Factor', range: [0, 1.2] },
     legend: LEGEND_RIGHT,
     margin: { t: 38, r: 150, b: 45, l: 52 }
@@ -334,14 +359,14 @@ function renderAll(data, stepIdx) {
 
 // ─── Slider sync ───────────────────────────────────────────────────────────
 function syncSliderMeta(data) {
-  const slider = document.getElementById('pv_cap_slider');
+  const slider = document.getElementById('cap_slider');
   slider.max   = data.totalSteps;
   const step   = Math.min(parseInt(slider.value) || 1, data.totalSteps);
   slider.value = step;
-  const pv_cap = data.steps[step - 1].pv_cap;
-  document.getElementById('pv_cap_display').textContent = pv_cap.toFixed(1);
+  const cap = data.steps[step - 1].cap;
+  document.getElementById('cap_display').textContent = cap.toFixed(1);
   document.getElementById('step_display').textContent   = step - 1;
-  document.getElementById('steps_display').textContent  = data.pv_steps;
+  document.getElementById('steps_display').textContent  = data.num_steps;
   return step;
 }
 
@@ -353,24 +378,34 @@ function update() {
   renderAll(data, syncSliderMeta(data));
 }
 
-function applyData() { update(); }
 
 // ─── Event listeners ───────────────────────────────────────────────────────
-document.getElementById('pv_cap_slider').addEventListener('input', function () {
+document.getElementById('cap_slider').addEventListener('input', function () {
   if (!cachedData) return;
   const step   = parseInt(this.value);
-  const pv_cap = cachedData.steps[step - 1].pv_cap;
-  document.getElementById('pv_cap_display').textContent = pv_cap.toFixed(1);
+  const cap = cachedData.steps[step - 1].cap;
+  document.getElementById('cap_display').textContent = cap.toFixed(1);
   document.getElementById('step_display').textContent   = step - 1;
   renderAll(cachedData, step);
 });
 
-['peak_load', 'peak_price', 'reserve_price', 'pv_max_cap', 'pv_steps'].forEach(id => {
+['peak_load', 'peak_price', 'reserve_price', 'max_cap', 'num_steps'].forEach(id => {
   document.getElementById(id).addEventListener('change', update);
 });
 
+document.getElementById('gen_profile').addEventListener('change', function () {
+  populateRow('cf_gen_row', GEN_PROFILES[this.value]);
+  update();
+});
+
+document.getElementById('load_profile').addEventListener('change', function () {
+  populateRow('cf_load_row', LOAD_PROFILES[this.value]);
+  update();
+});
+
 // ─── Init ──────────────────────────────────────────────────────────────────
-resetCfData();
+buildCfInputs('cf_gen_row', GEN_PROFILES.pv);
+buildCfInputs('cf_load_row', LOAD_PROFILES.southwest);
 update();
 </script>
 </body>
