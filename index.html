@@ -76,10 +76,6 @@
       <input type="number" id="peak_load" value="100" min="1" step="1">
     </div>
     <div class="param-group">
-      <label>Peak Price ($/MWh)</label>
-      <input type="number" id="peak_price" value="100" min="1" step="1">
-    </div>
-    <div class="param-group">
       <label>Max Capacity (MW)</label>
       <input type="number" id="max_cap" value="400" min="1" step="1">
     </div>
@@ -90,6 +86,10 @@
     <div class="param-group">
       <label>Steps</label>
       <input type="number" id="num_steps" value="80" min="1" max="200" step="1">
+    </div>
+    <div class="param-group">
+      <label>Energy Price ($/MWh) (x = gen_other/peak_load)</label>
+      <input type="text" id="price_func" value="100 * x^2" style="width: 180px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 3px; font-family: monospace;">
     </div>
     <div class="param-group">
       <label>Generation Profile</label>
@@ -181,10 +181,18 @@ function readCfRow(rowId) {
 // ─── Computation ───────────────────────────────────────────────────────────
 function compute() {
   const peak_load     = parseFloat(document.getElementById('peak_load').value)     || 100;
-  const peak_price    = parseFloat(document.getElementById('peak_price').value)    || 100;
   const reserve_price = parseFloat(document.getElementById('reserve_price').value) || 0;
   const max_cap    = parseFloat(document.getElementById('max_cap').value)    || 400;
   const num_steps      = Math.max(1, parseInt(document.getElementById('num_steps').value) || 40);
+
+  let priceFn;
+  try {
+    const expr = document.getElementById('price_func').value.replace(/\^/g, '**');
+    priceFn = new Function('x', 'return ' + expr);
+    priceFn(0.5); // test
+  } catch (e) {
+    priceFn = x => 100 * x;
+  }
 
   const cfGenVals  = readCfRow('cf_gen_row');
   const cfLoadVals = readCfRow('cf_load_row');
@@ -209,7 +217,7 @@ function compute() {
       const gen     = Math.min(d.load, maxgen);
       const gen_other  = d.load - gen;
       const curt    = maxgen - gen;
-      const price = gen_other / peak_load * peak_price;
+      const price = priceFn(gen_other / peak_load);
 
       hrRows.push({ hour: d.hour, load: d.load, maxgen, gen, gen_other, curt, price });
     });
@@ -252,7 +260,8 @@ function compute() {
     });
   }
 
-  return { steps, peak_load, peak_price, reserve_price, num_steps, totalSteps };
+  const maxPrice = Math.max(...steps.flatMap(s => s.hrRows.map(r => r.price)));
+  return { steps, peak_load, reserve_price, maxPrice, num_steps, totalSteps };
 }
 
 // ─── Charts ────────────────────────────────────────────────────────────────
@@ -287,7 +296,7 @@ function renderChart1(data, stepIdx) {
     yaxis: { title: 'Generation (MW)', range: [0, data.peak_load], showgrid: true },
     yaxis2: {
       title: 'Price ($/MWh)', overlaying: 'y', side: 'right',
-      range: [0, data.peak_price + data.reserve_price], showgrid: false
+      range: [0, data.maxPrice], showgrid: false
     },
     legend: { x: 1.22, y: 1, xanchor: 'left', yanchor: 'top', font: { size: 11 } },
     margin: { t: 38, r: 175, b: 45, l: 52 }
@@ -416,7 +425,7 @@ document.getElementById('cap_slider').addEventListener('input', function () {
   renderAll(cachedData, step);
 });
 
-['peak_load', 'peak_price', 'reserve_price', 'max_cap', 'num_steps'].forEach(id => {
+['peak_load', 'reserve_price', 'max_cap', 'num_steps', 'price_func'].forEach(id => {
   document.getElementById(id).addEventListener('change', update);
 });
 
