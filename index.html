@@ -235,19 +235,18 @@ function compute() {
 
     // Second pass: compute weighted sums
     let sumGen = 0, sumLoad = 0, sumMaxGen = 0;
-    let sumGenPrice = 0, sumMaxGenPrice = 0, sumLoadPrice = 0;
+    let sumGenPrice = 0, sumLoadPrice = 0;
     hrRows.forEach(d => {
       sumGen         += d.gen;
-      sumLoad          += d.load;
+      sumLoad        += d.load;
       sumMaxGen      += d.maxgen;
-      sumGenPrice    += d.gen    * d.price;
-      sumMaxGenPrice += d.maxgen * d.price;
-      sumLoadPrice     += d.load      * d.price;
+      sumGenPrice    += d.gen  * d.price;
+      sumLoadPrice   += d.load * d.price;
     });
 
-    const market_share           = sumLoad     > 0 ? sumGen         / sumLoad     : 0;
-    const lvoe                   = sumGen    > 0 ? sumGenPrice    / sumGen    : 0;
-    const lvoe_uncurt            = sumMaxGen > 0 ? sumMaxGenPrice / sumMaxGen : 0;
+    const market_share           = sumLoad   > 0 ? sumGen      / sumLoad   : 0;
+    const lvoe                   = sumGen    > 0 ? sumGenPrice / sumGen    : 0;
+    const lvoe_uncurt            = sumMaxGen > 0 ? sumGenPrice / sumMaxGen : 0;
     const price_ave                 = sumLoad     > 0 ? sumLoadPrice     / sumLoad     : 0;
     const value_factor           = price_ave   > 0 ? lvoe          / price_ave   : 0;
     const value_factor_uncurt    = price_ave   > 0 ? lvoe_uncurt   / price_ave   : 0;
