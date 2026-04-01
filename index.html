@@ -82,8 +82,9 @@
       <span class="param-hint">x = gen_other / peak_load</span>
     </div>
     <div class="param-group">
-      <label>Reserve Margin Price ($/MWh)</label>
-      <input type="number" id="reserve_price" value="200" min="0" step="10">
+      <label>Reserve Margin Price ($/kW-yr)</label>
+      <input type="number" id="reserve_price" value="0" min="0" step="10">
+      <span class="param-hint">Try 80</span>
     </div>
     <div class="param-group">
       <label>Generation Profile</label>
@@ -185,7 +186,8 @@ function readCfRow(rowId) {
 // ─── Computation ───────────────────────────────────────────────────────────
 function compute() {
   const peak_load     = parseFloat(document.getElementById('peak_load').value)     || 100;
-  const reserve_price = parseFloat(document.getElementById('reserve_price').value) || 0;
+  const reserve_price_kwyr = parseFloat(document.getElementById('reserve_price').value) || 0;
+  const reserve_price = reserve_price_kwyr * 1000 / 365;  // $/kW-yr to $/MWh
   const max_cap    = parseFloat(document.getElementById('max_cap').value)    || 400;
   const num_steps      = Math.max(1, parseInt(document.getElementById('num_steps').value) || 40);
 
